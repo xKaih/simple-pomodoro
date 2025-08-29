@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Simple Pomodoro</string>
+    <string name="simple_pomo">Simple Pomodoro</string>
+    <string name="settingsDescription">Settings</string>
+</resources>
