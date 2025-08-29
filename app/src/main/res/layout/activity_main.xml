@@ -28,13 +28,13 @@
             android:text="@string/simple_pomo"
             android:textAppearance="@style/simple_pomo"
             app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/imageView"
+            app:layout_constraintEnd_toStartOf="@+id/settingsIcon"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:ignore="TextSizeCheck" />
 
         <ImageView
-            android:id="@+id/imageView"
+            android:id="@+id/settingsIcon"
             android:layout_width="24dp"
             android:layout_height="match_parent"
             android:contentDescription="@string/settingsDescription"
@@ -45,7 +45,7 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <ImageButton
-        android:id="@+id/imageButton"
+        android:id="@+id/playPomodoroButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="51dp"
@@ -58,7 +58,7 @@
         app:layout_constraintEnd_toEndOf="parent"/>
 
     <ImageView
-        android:id="@+id/imageView2"
+        android:id="@+id/playIcon"
         android:layout_width="64dp"
         android:layout_height="64dp"
         android:src="@drawable/playtopause1"
@@ -66,8 +66,30 @@
         android:clickable="false"
         android:focusable="false"
         android:importantForAccessibility="no"
-        app:layout_constraintTop_toTopOf="@id/imageButton"
-        app:layout_constraintBottom_toBottomOf="@id/imageButton"
-        app:layout_constraintStart_toStartOf="@id/imageButton"
-        app:layout_constraintEnd_toEndOf="@id/imageButton"/>
+        app:layout_constraintTop_toTopOf="@id/playPomodoroButton"
+        app:layout_constraintBottom_toBottomOf="@id/playPomodoroButton"
+        app:layout_constraintStart_toStartOf="@id/playPomodoroButton"
+        app:layout_constraintEnd_toEndOf="@id/playPomodoroButton"/>
+
+    <TextView
+        android:id="@+id/timeLeftText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="44dp"
+        android:fontFamily="@font/pixelify_sans"
+        android:text="0:00"
+        android:textAppearance="@style/timer"
+        app:layout_constraintBottom_toTopOf="@+id/playPomodoroButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/button"
+        android:layout_width="150dp"
+        android:layout_height="123dp"
+        android:layout_marginBottom="472dp"
+        android:text="Button"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

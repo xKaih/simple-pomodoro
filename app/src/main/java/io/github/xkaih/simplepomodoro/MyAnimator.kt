@@ -7,6 +7,7 @@ import android.os.Looper
 import android.widget.ImageView
 import androidx.core.content.res.ResourcesCompat
 
+//I just spent like 5 hours just for this...
 class MyAnimator(
     private val imageView: ImageView,
     private val baseFrameName: String,
