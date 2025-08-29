@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="true"
+    android:visible="false"
+    >
+
+    <!--Tysm ChatGpt for this 🙏🙏🙏🙏🙏🙏-->
+    <item android:drawable="@drawable/playtopause1" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause2" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause3" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause4" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause5" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause6" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause7" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause8" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause9" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause10" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause11" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause12" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause13" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause14" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause15" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause16" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause17" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause18" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause19" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause20" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause21" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause22" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause23" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause24" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause25" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause26" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause27" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause28" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause29" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause30" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause31" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause32" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause33" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause34" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause35" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause36" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause37" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause38" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause39" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause40" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause41" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause42" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause43" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause44" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause45" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause46" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause47" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause48" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause49" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause50" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause51" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause52" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause53" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause54" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause55" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause56" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause57" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause58" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause59" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause60" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause61" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause62" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause63" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause64" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause65" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause66" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause67" android:duration="41"/>
+    <item android:drawable="@drawable/playtopause68" android:duration="41"/>
+
+</animation-list>
