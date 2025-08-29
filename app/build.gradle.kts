@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.simplepomodoro"
+    namespace = "io.github.xkaih.simplepomodoro"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.simplepomodoro"
+        applicationId = "io.github.xkaih.simplepomodoro"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.example.simplepomodoro
+package io.github.xkaih.simplepomodoro
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

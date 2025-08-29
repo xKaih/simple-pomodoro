@@ -1,4 +1,4 @@
-package com.example.simplepomodoro
+package io.github.xkaih.simplepomodoro
 
 import org.junit.Test
 
