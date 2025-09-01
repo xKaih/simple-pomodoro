@@ -49,6 +49,15 @@ class TimerManager(private val prefs: SharedPreferences) {
         runTimer()
     }
 
+    fun resume() {
+        if (remainingTime <= 0L) return
+
+        val endTime = System.currentTimeMillis() + remainingTime
+        prefs.edit { putLong(PREF_END_TIME, endTime) }
+
+        _isRunning.value = true
+        runTimer()
+    }
     fun pause() = stopTimer(resetTime = false)
 
     fun reset() = stopTimer(resetTime = true)

@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
             insets
         }
 
-        binding.button.setOnClickListener { timerManager.resetAll() }
+        binding.button.setOnClickListener { timerManager.reset() }
         val playIconAnimator = MyAnimator(
             binding.playIcon,
             "playtopause",
