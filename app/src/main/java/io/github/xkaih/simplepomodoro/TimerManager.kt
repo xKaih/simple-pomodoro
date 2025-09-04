@@ -1,6 +1,7 @@
 package io.github.xkaih.simplepomodoro
 
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.core.content.edit
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,10 +10,23 @@ import kotlinx.coroutines.flow.StateFlow
 class TimerManager(private val prefs: SharedPreferences) {
 
     companion object {
-        private const val DEFAULT_WORK_TIME = 25 * 60 * 1000L // 25
-        private const val DEFAULT_SHORT_REST = 5 * 60 * 1000L // 5
-        private const val DEFAULT_LONG_REST = 25 * 60 * 1000L // 25
+        private var WORK_TIME = 25 * 60 * 1000L // 25
+        private var SHORT_REST = 5 * 60 * 1000L // 5
+        private var LONG_REST = 25 * 60 * 1000L // 25
+        private var LONG_REST_THRESHOLD = 60 * 60 * 1000L // 60
         private const val PREF_END_TIME = "endTime"
+        const val PREF_WORK_TIME = "workTime"
+        const val PREF_SHORT_REST = "shortRest"
+        const val PREF_LONG_REST = "longRest"
+        const val PREF_LONG_REST_THRESHOLD = "longRestThreshold"
+
+        val DEFAULT_PREFERENCES_MAP = mapOf<String, Long>(
+            PREF_WORK_TIME to 25 * 60 * 1000L,
+            PREF_SHORT_REST to 5 * 60 * 1000L,
+            PREF_LONG_REST to 25 * 60 * 1000L,
+            PREF_LONG_REST_THRESHOLD to 60 * 60 * 1000
+
+        )
     }
 
     enum class TimerState { WORK, REST, LONG_REST }
@@ -30,13 +44,30 @@ class TimerManager(private val prefs: SharedPreferences) {
     private val _timerState = MutableStateFlow(TimerState.WORK)
     val timerState: StateFlow<TimerState> = _timerState
 
-    private val _remainingTimeForRest = MutableStateFlow(DEFAULT_LONG_REST)
-    private val _restingTime = MutableStateFlow(DEFAULT_SHORT_REST)
-    private val _longRestingTime = MutableStateFlow(DEFAULT_LONG_REST)
-
+    private var onSharedPreferencesChangeListener: Unit? = null
     private var onFinishedTimer: (() -> Unit)? = null
 
-    fun start(durationMs: Long = DEFAULT_WORK_TIME) {
+    init {
+
+        WORK_TIME = prefs.getLong(PREF_WORK_TIME, WORK_TIME)
+        SHORT_REST = prefs.getLong(PREF_SHORT_REST, SHORT_REST)
+        LONG_REST = prefs.getLong(PREF_LONG_REST,LONG_REST)
+        LONG_REST_THRESHOLD = prefs.getLong(PREF_LONG_REST_THRESHOLD, LONG_REST_THRESHOLD)
+
+        onSharedPreferencesChangeListener = prefs.registerOnSharedPreferenceChangeListener { _, key ->
+            Log.i("Preference changed", key.toString())
+            when (key){
+                PREF_WORK_TIME -> WORK_TIME = prefs.getLong(key, WORK_TIME)
+                PREF_LONG_REST -> LONG_REST = prefs.getLong(key, LONG_REST)
+                PREF_SHORT_REST -> SHORT_REST = prefs.getLong(key, SHORT_REST)
+                PREF_LONG_REST_THRESHOLD -> LONG_REST_THRESHOLD = prefs.getLong(key, LONG_REST_THRESHOLD)
+                PREF_END_TIME -> {return@registerOnSharedPreferenceChangeListener}
+            }
+            reset()
+        }
+    }
+
+    fun start(durationMs: Long = WORK_TIME) {
         stopTimer(resetTime = false)
 
         remainingTime = durationMs
@@ -88,6 +119,7 @@ class TimerManager(private val prefs: SharedPreferences) {
             while (remainingTime > 0 && isActive) {
                 delay(1000)
                 remainingTime -= 1000
+                LONG_REST_THRESHOLD -= 1000
                 _timeLeft.value = remainingTime.coerceAtLeast(0)
             }
 
@@ -97,14 +129,21 @@ class TimerManager(private val prefs: SharedPreferences) {
             when (_timerState.value) {
                 TimerState.WORK -> {
                     _timerState.value =
-                        if (_remainingTimeForRest.value <= 0) TimerState.LONG_REST else TimerState.REST
+                        if (LONG_REST_THRESHOLD <= 0)
+                            TimerState.LONG_REST
+                        else
+                            TimerState.REST
+
                     val nextDuration = if (_timerState.value == TimerState.LONG_REST)
-                        _longRestingTime.value else _restingTime.value
+                        LONG_REST
+                    else
+                        SHORT_REST
+
                     start(nextDuration)
                 }
                 else -> {
                     _timerState.value = TimerState.WORK
-                    start(DEFAULT_WORK_TIME)
+                    start()
                 }
             }
         }

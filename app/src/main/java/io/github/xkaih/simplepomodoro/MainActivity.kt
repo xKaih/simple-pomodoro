@@ -2,6 +2,7 @@ package io.github.xkaih.simplepomodoro
 
 import android.R
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
@@ -42,15 +43,21 @@ class MainActivity : ComponentActivity() {
             68,
             41L
         )
+
+        binding.settingsIcon.setOnClickListener {
+            val intent = Intent(this, SettingsActivity::class.java)
+            startActivity(intent)
+        }
+
+
         binding.playPomodoroButton.setOnClickListener {
-            playIconAnimator.toggle()
             if (timerManager.isRunning.value) {
                 timerManager.pause()
             } else {
                 if (timerManager.timeLeft.value > 0) {
                     timerManager.resume()
                 } else {
-                    timerManager.start(25 * 60 * 1000L)
+                    timerManager.start()
                 }
             }
         }
@@ -65,6 +72,15 @@ class MainActivity : ComponentActivity() {
                 val minutes = seconds / 60
                 val secs = seconds % 60
                 binding.timeLeftText.text = "%02d:%02d".format(minutes, secs)
+            }
+        }
+
+        lifecycleScope.launch {
+            timerManager.isRunning.collect { value ->
+                if (value)
+                    playIconAnimator.startForward()
+                else
+                    playIconAnimator.startBackward()
             }
         }
 
