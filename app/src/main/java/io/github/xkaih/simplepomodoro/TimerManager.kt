@@ -1,24 +1,35 @@
 package io.github.xkaih.simplepomodoro
 
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.util.Log
+import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.edit
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class TimerManager(private val prefs: SharedPreferences) {
+class TimerManager(private val prefs: SharedPreferences, private val notificationManager: NotificationManager, private val mainContext: ComponentActivity) {
 
     companion object {
-        private var WORK_TIME = 25 * 60 * 1000L // 25
-        private var SHORT_REST = 5 * 60 * 1000L // 5
-        private var LONG_REST = 25 * 60 * 1000L // 25
-        private var LONG_REST_THRESHOLD = 60 * 60 * 1000L // 60
+        private var workTime = 25 * 60 * 1000L // 25
+        private var shortRest = 5 * 60 * 1000L // 5
+        private var longRest = 25 * 60 * 1000L // 25
+        private var longRestThreshold = 60 * 60 * 1000L // 60
         private const val PREF_END_TIME = "endTime"
         const val PREF_WORK_TIME = "workTime"
         const val PREF_SHORT_REST = "shortRest"
         const val PREF_LONG_REST = "longRest"
         const val PREF_LONG_REST_THRESHOLD = "longRestThreshold"
+
+        const val POMODORO_CHANNEL_ID = "pomodoroChannel"
 
         val DEFAULT_PREFERENCES_MAP = mapOf<String, Long>(
             PREF_WORK_TIME to 25 * 60 * 1000L,
@@ -48,26 +59,61 @@ class TimerManager(private val prefs: SharedPreferences) {
     private var onFinishedTimer: (() -> Unit)? = null
 
     init {
-
-        WORK_TIME = prefs.getLong(PREF_WORK_TIME, WORK_TIME)
-        SHORT_REST = prefs.getLong(PREF_SHORT_REST, SHORT_REST)
-        LONG_REST = prefs.getLong(PREF_LONG_REST,LONG_REST)
-        LONG_REST_THRESHOLD = prefs.getLong(PREF_LONG_REST_THRESHOLD, LONG_REST_THRESHOLD)
+        createChannel()
+        workTime = prefs.getLong(PREF_WORK_TIME, workTime)
+        shortRest = prefs.getLong(PREF_SHORT_REST, shortRest)
+        longRest = prefs.getLong(PREF_LONG_REST,longRest)
+        longRestThreshold = prefs.getLong(PREF_LONG_REST_THRESHOLD, longRestThreshold)
 
         onSharedPreferencesChangeListener = prefs.registerOnSharedPreferenceChangeListener { _, key ->
             Log.i("Preference changed", key.toString())
             when (key){
-                PREF_WORK_TIME -> WORK_TIME = prefs.getLong(key, WORK_TIME)
-                PREF_LONG_REST -> LONG_REST = prefs.getLong(key, LONG_REST)
-                PREF_SHORT_REST -> SHORT_REST = prefs.getLong(key, SHORT_REST)
-                PREF_LONG_REST_THRESHOLD -> LONG_REST_THRESHOLD = prefs.getLong(key, LONG_REST_THRESHOLD)
+                PREF_WORK_TIME -> workTime = prefs.getLong(key, workTime)
+                PREF_LONG_REST -> longRest = prefs.getLong(key, longRest)
+                PREF_SHORT_REST -> shortRest = prefs.getLong(key, shortRest)
+                PREF_LONG_REST_THRESHOLD -> longRestThreshold = prefs.getLong(key, longRestThreshold)
                 PREF_END_TIME -> {return@registerOnSharedPreferenceChangeListener}
             }
             reset()
         }
     }
 
-    fun start(durationMs: Long = WORK_TIME) {
+    private fun createChannel() {
+        val channel = NotificationChannel(
+            POMODORO_CHANNEL_ID,
+            "Pomodoro timer",
+            NotificationManager.IMPORTANCE_MAX
+        ).apply { description = "Pomodoro" }
+
+        channel.enableVibration(true)
+
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun sendNotification(title: String, text: String, onGoing: Boolean, id: Int){
+        var builder = NotificationCompat.Builder(mainContext, POMODORO_CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setOngoing(onGoing)
+
+        with(NotificationManagerCompat.from(mainContext)){
+            if (ActivityCompat.checkSelfPermission(mainContext, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    mainContext,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    1001
+                )
+                return
+            }
+            notify(id,builder.build())
+        }
+
+    }
+
+    fun start(durationMs: Long = workTime) {
         stopTimer(resetTime = false)
 
         remainingTime = durationMs
@@ -102,12 +148,18 @@ class TimerManager(private val prefs: SharedPreferences) {
     }
 
     private fun stopTimer(resetTime: Boolean) {
+        if (_timerState.value == TimerState.WORK) {
+            NotificationManagerCompat.from(mainContext).cancel(1)
+        }
+        else {
+            NotificationManagerCompat.from(mainContext).cancel(2)
+        }
         job?.cancel()
         _isRunning.value = false
         if (resetTime) {
             _timeLeft.value = 0L
             remainingTime = 0L
-            LONG_REST_THRESHOLD = prefs.getLong(PREF_LONG_REST_THRESHOLD, DEFAULT_PREFERENCES_MAP[PREF_LONG_REST_THRESHOLD]!!)
+            longRestThreshold = prefs.getLong(PREF_LONG_REST_THRESHOLD, DEFAULT_PREFERENCES_MAP[PREF_LONG_REST_THRESHOLD]!!)
         } else {
             remainingTime = _timeLeft.value
         }
@@ -117,10 +169,20 @@ class TimerManager(private val prefs: SharedPreferences) {
     private fun runTimer() {
         job?.cancel()
         job = scope.launch {
+
+            if (_timerState.value == TimerState.WORK) {
+                sendNotification("Lets do some work", ":D", true, 1)
+                NotificationManagerCompat.from(mainContext).cancel(2)
+            }
+            else {
+                sendNotification("Take a break", "You deserve it", true, 2)
+                NotificationManagerCompat.from(mainContext).cancel(1)
+            }
+
             while (remainingTime > 0 && isActive) {
                 delay(1000)
                 remainingTime -= 1000
-                LONG_REST_THRESHOLD -= 1000
+                longRestThreshold -= 1000
                 _timeLeft.value = remainingTime.coerceAtLeast(0)
             }
 
@@ -130,15 +192,15 @@ class TimerManager(private val prefs: SharedPreferences) {
             when (_timerState.value) {
                 TimerState.WORK -> {
                     _timerState.value =
-                        if (LONG_REST_THRESHOLD <= 0)
+                        if (longRestThreshold <= 0)
                             TimerState.LONG_REST
                         else
                             TimerState.REST
 
                     val nextDuration = if (_timerState.value == TimerState.LONG_REST)
-                        LONG_REST
+                        longRest
                     else
-                        SHORT_REST
+                        shortRest
 
                     start(nextDuration)
                 }

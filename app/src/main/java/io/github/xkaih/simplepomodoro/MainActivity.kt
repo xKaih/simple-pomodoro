@@ -1,6 +1,7 @@
 package io.github.xkaih.simplepomodoro
 
 import android.R
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.AnimationDrawable
@@ -68,7 +69,7 @@ class MainActivity : ComponentActivity() {
         }
 
         val prefs = getSharedPreferences("pomodoro_prefs", Context.MODE_PRIVATE)
-        timerManager = TimerManager(prefs)
+        timerManager = TimerManager(prefs, getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, this)
 
 
         lifecycleScope.launch {
