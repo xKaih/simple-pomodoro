@@ -70,6 +70,7 @@ class MainActivity : ComponentActivity() {
 
         val prefs = getSharedPreferences("pomodoro_prefs", Context.MODE_PRIVATE)
         timerManager = TimerManager(prefs, getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, this)
+        timerManager.restoreState()
 
 
         lifecycleScope.launch {
