@@ -82,7 +82,7 @@ class TimerManager(private val prefs: SharedPreferences, private val notificatio
         val channel = NotificationChannel(
             POMODORO_CHANNEL_ID,
             "Pomodoro timer",
-            NotificationManager.IMPORTANCE_MAX
+            NotificationManager.IMPORTANCE_HIGH
         ).apply { description = "Pomodoro" }
 
         channel.enableVibration(true)
