@@ -36,7 +36,8 @@ class MainActivity : ComponentActivity() {
             insets
         }
 
-        binding.button.setOnClickListener { timerManager.reset() }
+        /*binding.button.setOnClickListener { timerManager.reset() }*/
+
         val playIconAnimator = MyAnimator(
             binding.playIcon,
             "playtopause",
@@ -60,6 +61,10 @@ class MainActivity : ComponentActivity() {
                     timerManager.start()
                 }
             }
+        }
+
+        binding.timeLeftText.setOnClickListener {
+            timerManager.reset()
         }
 
         val prefs = getSharedPreferences("pomodoro_prefs", Context.MODE_PRIVATE)

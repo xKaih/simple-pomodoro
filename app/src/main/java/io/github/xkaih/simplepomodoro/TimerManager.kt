@@ -107,6 +107,7 @@ class TimerManager(private val prefs: SharedPreferences) {
         if (resetTime) {
             _timeLeft.value = 0L
             remainingTime = 0L
+            LONG_REST_THRESHOLD = prefs.getLong(PREF_LONG_REST_THRESHOLD, DEFAULT_PREFERENCES_MAP[PREF_LONG_REST_THRESHOLD]!!)
         } else {
             remainingTime = _timeLeft.value
         }
