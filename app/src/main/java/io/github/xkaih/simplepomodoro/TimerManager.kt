@@ -3,11 +3,14 @@ package io.github.xkaih.simplepomodoro
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.icu.util.TimeUnit
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.ui.unit.Constraints
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -15,11 +18,9 @@ import androidx.core.content.edit
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-
 class TimerManager(
     private val prefs: SharedPreferences,
-    private val notificationManager: NotificationManager,
-    private val mainContext: ComponentActivity
+    private val notificationHandler: NotificationHandler
 ) {
 
     companion object {
@@ -38,6 +39,21 @@ class TimerManager(
         const val PREF_LONG_REST_THRESHOLD = "longRestThreshold"
 
         const val POMODORO_CHANNEL_ID = "pomodoroChannel"
+        val START_NOTIFICATION = Notification(
+            "Let's do some work",
+            ":D",
+            true,
+            1
+        )
+
+        val REST_NOTIFICATION = Notification(
+            "Take a break",
+            "You deserve it",
+            true,
+            2
+        )
+
+        var nextNotification: Notification = START_NOTIFICATION
 
         val DEFAULT_PREFERENCES_MAP = mapOf(
             PREF_WORK_TIME to 25 * 60 * 1000L,
@@ -52,7 +68,6 @@ class TimerManager(
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var job: Job? = null
     private var remainingTime: Long = 0L
-
     private var lastNow: Long = System.currentTimeMillis()
 
     private val _timeLeft = MutableStateFlow(0L)
@@ -97,9 +112,6 @@ class TimerManager(
     }
 
     init {
-        // Create the notification channel.
-        createChannel()
-
         // Load user settings on init.
         workTime = prefs.getLong(PREF_WORK_TIME, workTime)
         shortRest = prefs.getLong(PREF_SHORT_REST, shortRest)
@@ -108,43 +120,6 @@ class TimerManager(
 
         // Register the listener object (only reacts to settings keys now).
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
-    }
-
-    // ---- Notifications ----
-
-    private fun createChannel() {
-        val channel = NotificationChannel(
-            POMODORO_CHANNEL_ID,
-            "Pomodoro timer",
-            NotificationManager.IMPORTANCE_HIGH
-        ).apply { description = "Pomodoro" }
-
-        channel.enableVibration(true)
-        notificationManager.createNotificationChannel(channel)
-    }
-
-    private fun sendNotification(title: String, text: String, onGoing: Boolean, id: Int) {
-        val builder = NotificationCompat.Builder(mainContext, POMODORO_CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setOngoing(onGoing)
-
-        with(NotificationManagerCompat.from(mainContext)) {
-            if (ActivityCompat.checkSelfPermission(
-                    mainContext,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    mainContext,
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    1001
-                )
-                return
-            }
-            notify(id, builder.build())
-        }
     }
 
     // ---- Start / Resume / Pause / Reset ----
@@ -204,9 +179,9 @@ class TimerManager(
 
     private fun stopTimer(resetTime: Boolean) {
         if (_timerState.value == TimerState.WORK)
-            NotificationManagerCompat.from(mainContext).cancel(1)
+            notificationHandler.cancelNotification(1)
         else
-            NotificationManagerCompat.from(mainContext).cancel(2)
+            notificationHandler.cancelNotification(2)
 
         job?.cancel()
         _isRunning.value = false
@@ -241,12 +216,14 @@ class TimerManager(
 
             // Show the correct persistent notification for the current phase
             if (_timerState.value == TimerState.WORK) {
-                sendNotification("Let's do some work", ":D", true, 1)
-                NotificationManagerCompat.from(mainContext).cancel(2)
+                nextNotification = START_NOTIFICATION
+                notificationHandler.cancelNotification(2)
             } else {
-                sendNotification("Take a break", "You deserve it", true, 2)
-                NotificationManagerCompat.from(mainContext).cancel(1)
+                nextNotification = REST_NOTIFICATION
+                notificationHandler.cancelNotification(1)
             }
+
+            notificationHandler.sendNotification(nextNotification)
 
             // Use persisted endTime as single source of truth
             val endTime = prefs.getLong(PREF_END_TIME, System.currentTimeMillis() + remainingTime)
