@@ -58,6 +58,6 @@ class NotificationHandler(
     }
 
     fun cancelNotification(id: Int) {
-        NotificationManagerCompat.from(mainContext).cancel(1)
+        NotificationManagerCompat.from(mainContext).cancel(id)
     }
 }
