@@ -1,9 +1,11 @@
 package io.github.xkaih.simplepomodoro
 
+import android.Manifest
 import android.R
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.Drawable
 import android.os.Bundle
@@ -13,6 +15,9 @@ import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -37,6 +42,7 @@ class MainActivity : ComponentActivity() {
             insets
         }
 
+        requestNotificationPermission()
         /*binding.button.setOnClickListener { timerManager.reset() }*/
 
         val playIconAnimator = MyAnimator(
@@ -56,7 +62,7 @@ class MainActivity : ComponentActivity() {
             if (timerManager.isRunning.value) {
                 timerManager.pause()
             } else {
-                if (timerManager.timeLeft.value > 0) {
+                if (timerManager.timeLeft.value.first > 0 || timerManager.timeLeft.value.second > 0) {
                     timerManager.resume()
                 } else {
                     timerManager.start()
@@ -71,21 +77,14 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("pomodoro_prefs", Context.MODE_PRIVATE)
 
         timerManager = TimerManager(
-            prefs,
-            NotificationHandler(
-                applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager,
-                applicationContext
-            )
+            this,
+            prefs
         )
-        timerManager.restoreState()
 
 
         lifecycleScope.launch {
             timerManager.timeLeft.collect { time ->
-                val seconds = time / 1000
-                val minutes = seconds / 60
-                val secs = seconds % 60
-                binding.timeLeftText.text = "%02d:%02d".format(minutes, secs)
+                binding.timeLeftText.text = "%02d:%02d".format(time.first, time.second)
             }
         }
 
@@ -97,7 +96,30 @@ class MainActivity : ComponentActivity() {
                     playIconAnimator.startBackward()
             }
         }
+    }
 
+    fun requestNotificationPermission() {
+        val requestPermissionLauncher =
+            registerForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { isGranted: Boolean ->
+                if (isGranted) {
+                    Toast.makeText(this, "Notification permission granted", Toast.LENGTH_SHORT).show()
+                } else {
+                    requestNotificationPermission()
+                }
+            }
+
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED -> {}
+            else -> {
+                requestPermissionLauncher.launch(
+                    Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 
 }

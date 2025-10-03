@@ -3,7 +3,10 @@ package io.github.xkaih.simplepomodoro
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.icu.util.TimeUnit
@@ -14,13 +17,14 @@ import androidx.compose.ui.unit.Constraints
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 class TimerManager(
-    private val prefs: SharedPreferences,
-    private val notificationHandler: NotificationHandler
+    private val context: Context,
+    private val prefs: SharedPreferences
 ) {
 
     companion object {
@@ -39,21 +43,7 @@ class TimerManager(
         const val PREF_LONG_REST_THRESHOLD = "longRestThreshold"
 
         const val POMODORO_CHANNEL_ID = "pomodoroChannel"
-        val START_NOTIFICATION = Notification(
-            "Let's do some work",
-            ":D",
-            true,
-            1
-        )
-
-        val REST_NOTIFICATION = Notification(
-            "Take a break",
-            "You deserve it",
-            true,
-            2
-        )
-
-        var nextNotification: Notification = START_NOTIFICATION
+        const val POMODORO_UPDATE_NOTIFICATION_ID = "pomodoroUpdateChannel"
 
         val DEFAULT_PREFERENCES_MAP = mapOf(
             PREF_WORK_TIME to 25 * 60 * 1000L,
@@ -63,23 +53,35 @@ class TimerManager(
         )
     }
 
+    val serviceReceiver = object: BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == "io.github.xkaih.simplepomodoro.TIMER_UPDATE") {
+                _timeLeft.value = intent.getLongExtra("MINUTES_LEFT", 0L) to (intent.getLongExtra("SECONDS_LEFT", 0L))
+            }
+            else if (intent?.action == "io.github.xkaih.simplepomodoro.TIMER_FINISH") {
+                workedTime += if (_timerState.value == TimerState.WORK) intent.getLongExtra("PASSED_TIME", 0L) else 0L
+                _isRunning.value = false
+                mustRest = !mustRest
+                start()
+            }
+            else if (intent?.action == "io.github.xkaih.simplepomodoro.TIMER_PAUSE") {
+                workedTime += if (_timerState.value == TimerState.WORK) intent.getLongExtra("PASSED_TIME", 0L) else 0L
+                _isRunning.value = false
+            }
+        }
+    }
     enum class TimerState { WORK, REST, LONG_REST }
 
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-    private var job: Job? = null
-    private var remainingTime: Long = 0L
-    private var lastNow: Long = System.currentTimeMillis()
-
-    private val _timeLeft = MutableStateFlow(0L)
-    val timeLeft: StateFlow<Long> = _timeLeft
+    private var mustRest = false
+    private var workedTime = 0L
+    private val _timeLeft = MutableStateFlow(Pair(0L, 0L))
+    val timeLeft: StateFlow<Pair<Long, Long>> = _timeLeft
 
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
 
     private val _timerState = MutableStateFlow(TimerState.WORK)
     val timerState: StateFlow<TimerState> = _timerState
-
-    private var onFinishedTimer: (() -> Unit)? = null
 
     // Register the listener object so we can unregister later.
     private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
@@ -111,6 +113,7 @@ class TimerManager(
         }
     }
 
+    // Init pomodoro settings from preferences
     init {
         // Load user settings on init.
         workTime = prefs.getLong(PREF_WORK_TIME, workTime)
@@ -120,214 +123,67 @@ class TimerManager(
 
         // Register the listener object (only reacts to settings keys now).
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+        val filter = IntentFilter().apply {
+            addAction("io.github.xkaih.simplepomodoro.TIMER_UPDATE")
+            addAction("io.github.xkaih.simplepomodoro.TIMER_FINISH")
+            addAction("io.github.xkaih.simplepomodoro.TIMER_PAUSE")
+        }
+        ContextCompat.registerReceiver(
+            context,
+            serviceReceiver,
+            filter,
+            ContextCompat.RECEIVER_EXPORTED
+        )
     }
 
-    // ---- Start / Resume / Pause / Reset ----
-
+    private fun sendServiceCommand(action: String, durationMs: Long? = null, state: TimerState? = null) {
+        val intent = Intent(context, PomodoroService::class.java)
+        intent.action = action
+        durationMs?.let { intent.putExtra("DURATION_MS", it) }
+        state?.let { intent.putExtra("STATE", it.name) }
+        ContextCompat.startForegroundService(context, intent)
+    }
     fun start(durationMs: Long = workTime) {
-        stopTimer(resetTime = false)
-
-        remainingTime = durationMs
-        _timeLeft.value = remainingTime
-        _isRunning.value = true
-
-        val now = System.currentTimeMillis()
-        lastNow = now
-        val endTime = now + remainingTime
-
-        // Save runtime state to preferences (used to restore after process pause/kill)
-        prefs.edit {
-            putLong(PREF_END_TIME, endTime)
-            putLong(PREF_PHASE_START_TIME, now)
-            putString(PREF_TIMER_STATE, _timerState.value.name)
+        if (workedTime >= longRestThreshold && mustRest) {
+            _timerState.value = TimerState.LONG_REST
+            workedTime = 0L
+        } else if (mustRest) {
+            _timerState.value = TimerState.REST
         }
+        else
+            _timerState.value = TimerState.WORK
 
-        runTimer()
+        val duration = when (_timerState.value) {
+            TimerState.WORK -> workTime
+            TimerState.REST -> shortRest
+            TimerState.LONG_REST -> longRest
+        }
+        _isRunning.value = true
+        sendServiceCommand("START", duration, _timerState.value)
     }
 
     fun resume() {
-        if (remainingTime <= 0L) return
-        val now = System.currentTimeMillis()
-        lastNow = now
-        val endTime = now + remainingTime
-        prefs.edit {
-            putLong(PREF_END_TIME, endTime)
-            putLong(PREF_PHASE_START_TIME, now)
-            putString(PREF_TIMER_STATE, _timerState.value.name)
-        }
         _isRunning.value = true
-        runTimer()
+        sendServiceCommand("RESUME")
     }
 
     fun pause() = stopTimer(resetTime = false)
     fun reset() = stopTimer(resetTime = true)
-
-    fun setOnTimerFinishedListener(callback: () -> Unit) {
-        onFinishedTimer = callback
-    }
-
-    /**
-     * Cancel all coroutines and unregister the prefs listener.
-     * Call this when the manager is destroyed to avoid leaks.
-     */
-    fun cancelAll() {
-        scope.cancel()
-        try {
-            prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
-        } catch (_: Exception) { /* ignore */ }
-    }
-
     private fun stopTimer(resetTime: Boolean) {
-        if (_timerState.value == TimerState.WORK)
-            notificationHandler.cancelNotification(1)
-        else
-            notificationHandler.cancelNotification(2)
-
-        job?.cancel()
-        _isRunning.value = false
+        if(!PomodoroService.isRunning)
+            return
 
         if (resetTime) {
-            // Reset timer and restore the configured threshold
-            _timeLeft.value = 0L
-            remainingTime = 0L
+            sendServiceCommand("RESET")
+            _timeLeft.value = Pair(0L, 0L)
+            _isRunning.value = false
+            mustRest = false
             _timerState.value = TimerState.WORK
-            longRestThreshold = prefs.getLong(
-                PREF_LONG_REST_THRESHOLD,
-                DEFAULT_PREFERENCES_MAP[PREF_LONG_REST_THRESHOLD]!!
-            )
-        } else {
-            // Keep current remaining time
-            remainingTime = _timeLeft.value
+            workedTime = 0L
         }
-
-        // Remove runtime-only values from prefs (listener ignores these keys)
-        prefs.edit {
-            remove(PREF_END_TIME)
-            remove(PREF_PHASE_START_TIME)
-            remove(PREF_TIMER_STATE)
-        }
-    }
-
-    // ---- Timer loop ----
-
-    private fun runTimer() {
-        job?.cancel()
-        job = scope.launch {
-
-            // Show the correct persistent notification for the current phase
-            if (_timerState.value == TimerState.WORK) {
-                nextNotification = START_NOTIFICATION
-                notificationHandler.cancelNotification(2)
-            } else {
-                nextNotification = REST_NOTIFICATION
-                notificationHandler.cancelNotification(1)
-            }
-
-            notificationHandler.sendNotification(nextNotification)
-
-            // Use persisted endTime as single source of truth
-            val endTime = prefs.getLong(PREF_END_TIME, System.currentTimeMillis() + remainingTime)
-
-            while (isActive) {
-                val now = System.currentTimeMillis()
-                val timeLeftNow = endTime - now
-                _timeLeft.value = timeLeftNow.coerceAtLeast(0L)
-                remainingTime = _timeLeft.value
-
-                // Decrease the session threshold only while working, using real elapsed time
-                if (_timerState.value == TimerState.WORK) {
-                    val delta = (now - lastNow).coerceAtLeast(0L)
-                    longRestThreshold = (longRestThreshold - delta).coerceAtLeast(0L)
-                }
-                lastNow = now
-
-                if (timeLeftNow <= 0L) break
-                delay(1000L)
-            }
-
+        else {
+            sendServiceCommand("PAUSE")
             _isRunning.value = false
-            onFinishedTimer?.invoke()
-
-            // State transitions
-            when (_timerState.value) {
-                TimerState.WORK -> {
-                    _timerState.value =
-                        if (longRestThreshold <= 0L) TimerState.LONG_REST else TimerState.REST
-
-                    val nextDuration = if (_timerState.value == TimerState.LONG_REST) longRest else shortRest
-                    start(nextDuration)
-                }
-                else -> {
-                    if (_timerState.value == TimerState.LONG_REST) {
-                        // Reset the threshold to configured value after a long rest
-                        longRestThreshold = prefs.getLong(
-                            PREF_LONG_REST_THRESHOLD,
-                            DEFAULT_PREFERENCES_MAP[PREF_LONG_REST_THRESHOLD]!!
-                        )
-                    }
-                    _timerState.value = TimerState.WORK
-                    start(workTime)
-                }
-            }
-        }
-    }
-
-    // ---- Restore state after reopening ----
-
-    fun restoreState() {
-        // Restore the runtime phase if present
-        val savedState = prefs.getString(PREF_TIMER_STATE, null)
-        if (savedState != null) {
-            _timerState.value = runCatching { TimerState.valueOf(savedState) }.getOrElse { TimerState.WORK }
-        }
-
-        val endTime = prefs.getLong(PREF_END_TIME, -1L)
-        if (endTime <= 0L) {
-            _timeLeft.value = 0L
-            _isRunning.value = false
-            return
-        }
-
-        val now = System.currentTimeMillis()
-        val left = endTime - now
-
-        if (left > 0L) {
-            // Timer still running -> recalculate remaining time
-            remainingTime = left
-            _timeLeft.value = remainingTime
-            _isRunning.value = true
-
-            // If we were in WORK, deduct elapsed time of this phase from the threshold
-            if (_timerState.value == TimerState.WORK) {
-                val phaseStart = prefs.getLong(PREF_PHASE_START_TIME, now)
-                val elapsedWork = (now - phaseStart).coerceAtLeast(0L)
-                longRestThreshold = (longRestThreshold - elapsedWork).coerceAtLeast(0L)
-            }
-
-            lastNow = now
-            runTimer()
-        } else {
-            // The phase finished while the app was not active -> force the transition
-            _isRunning.value = false
-            _timeLeft.value = 0L
-
-            when (_timerState.value) {
-                TimerState.WORK -> {
-                    _timerState.value = if (longRestThreshold <= 0L) TimerState.LONG_REST else TimerState.REST
-                    val nextDuration = if (_timerState.value == TimerState.LONG_REST) longRest else shortRest
-                    start(nextDuration)
-                }
-                else -> {
-                    if (_timerState.value == TimerState.LONG_REST) {
-                        longRestThreshold = prefs.getLong(
-                            PREF_LONG_REST_THRESHOLD,
-                            DEFAULT_PREFERENCES_MAP[PREF_LONG_REST_THRESHOLD]!!
-                        )
-                    }
-                    _timerState.value = TimerState.WORK
-                    start(workTime)
-                }
-            }
         }
     }
 }
