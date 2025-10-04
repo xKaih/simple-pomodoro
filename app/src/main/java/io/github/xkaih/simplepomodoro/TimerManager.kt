@@ -141,7 +141,12 @@ class TimerManager(
         intent.action = action
         durationMs?.let { intent.putExtra("DURATION_MS", it) }
         state?.let { intent.putExtra("STATE", it.name) }
-        ContextCompat.startForegroundService(context, intent)
+        if (PomodoroService.isRunning) {
+            // Service already running in foreground; deliver command without triggering new FGS start restrictions
+            context.startService(intent)
+        } else {
+            ContextCompat.startForegroundService(context, intent)
+        }
     }
     fun start(durationMs: Long = workTime) {
         if (workedTime >= longRestThreshold && mustRest) {

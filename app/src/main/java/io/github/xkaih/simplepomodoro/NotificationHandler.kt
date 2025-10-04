@@ -23,13 +23,21 @@ class NotificationHandler(
         createChannel()
     }
     private fun createChannel() {
+        // Recreate to ensure vibration pattern is applied consistently if this runs before the service.
+        try {
+            notificationManager.deleteNotificationChannel(POMODORO_CHANNEL_ID)
+        } catch (_: Exception) {}
+
         val channel = NotificationChannel(
             POMODORO_CHANNEL_ID,
-            "Pomodoro timer",
+            "Pomodoro timer alerts",
             NotificationManager.IMPORTANCE_HIGH
-        ).apply { description = "Pomodoro" }
+        ).apply {
+            description = "Pomodoro"
+            enableVibration(true)
+            vibrationPattern = longArrayOf(0, 1500)
+        }
 
-        channel.enableVibration(true)
         notificationManager.createNotificationChannel(channel)
     }
 

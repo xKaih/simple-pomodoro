@@ -2,14 +2,17 @@ package io.github.xkaih.simplepomodoro
 
 import android.Manifest
 import android.R
+import android.app.AlarmManager
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
 import android.graphics.drawable.Drawable
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
+import android.provider.Settings
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.Toast
@@ -43,6 +46,7 @@ class MainActivity : ComponentActivity() {
         }
 
         requestNotificationPermission()
+        requestExactAlarmPermissionIfNeeded()
         /*binding.button.setOnClickListener { timerManager.reset() }*/
 
         val playIconAnimator = MyAnimator(
@@ -122,4 +126,25 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun requestExactAlarmPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val am = getSystemService(AlarmManager::class.java)
+            if (!am.canScheduleExactAlarms()) {
+                try {
+                    startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM))
+                    Toast.makeText(
+                        this,
+                        "Please allow exact alarms in Settings for reliable Pomodoro timing",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } catch (e: Exception) {
+                    // As a fallback, direct the user to the general app settings screen
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = android.net.Uri.parse("package:" + packageName)
+                    }
+                    startActivity(intent)
+                }
+            }
+        }
+    }
 }
